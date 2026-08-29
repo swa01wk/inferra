@@ -1,0 +1,25 @@
+# Real vLLM overlay for docker-compose.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.real.yml up -d --build --wait
+#
+# Prerequisites:
+#   - SSH tunnel is running on the Mac:
+#       ssh -i ~/.ssh/id_ed25519_runpod -L 8001:localhost:8000 -N -f \
+#           5fmoz125ju1zc0-<CONTAINER_ID>@ssh.runpod.io
+#   - vLLM is serving on RunPod port 8000 (after running 04_finalize_phase1.sh)
+#
+# What this override does:
+#   - Keeps the mock-vllm container running ONLY for the Docker-level health check
+#     (so api-gateway's depends_on: vllm: condition: service_healthy passes).
+#   - Overrides VLLM_BASE_URL so the gateway's own /health probe and VLLMClient()
+#     default calls hit the real vLLM through the SSH tunnel.
+#   - The actual per-request routing uses worker.endpoint from the DB
+#     (set to http://host.docker.internal:8001 by seed_real_worker.py).
+
+services:
+  api-gateway:
+    environment:
+      # Point gateway health probe and fallback client at real vLLM via SSH tunnel.
+      # host.docker.internal resolves to the Mac host from Docker Desktop containers.
+      VLLM_BASE_URL: http://host.docker.internal:8001

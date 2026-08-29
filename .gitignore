@@ -1,0 +1,141 @@
+# =============================================================================
+# Inferra — .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+wheels/
+*.whl
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Type checking / linting
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.junit.xml
+
+# -----------------------------------------------------------------------------
+# Environment & Secrets — NEVER commit these
+# -----------------------------------------------------------------------------
+.env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+# Keep .env.example (safe template — no real secrets)
+!.env.example
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_ed25519
+id_ed25519_runpod
+*.pub
+
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+# Ignore locally generated compose overrides with real credentials
+docker-compose.override.yml
+
+# Postgres data volume (if mounted locally)
+postgres-data/
+pgdata/
+
+# Redis dump
+dump.rdb
+
+# MinIO data
+minio-data/
+
+# -----------------------------------------------------------------------------
+# Benchmark & Run outputs
+# -----------------------------------------------------------------------------
+# Raw JSON outputs from benchmark scripts (large, generated, not source)
+workspace/benchmarks/
+reports/
+*.json
+# Keep fixture/config JSON files that are source
+!tests/**/*.json
+!infra/**/*.json
+
+# Locust HTML reports
+reports/
+
+# -----------------------------------------------------------------------------
+# Frontend (inferra-ui — added later)
+# -----------------------------------------------------------------------------
+inferra-ui/node_modules/
+inferra-ui/dist/
+inferra-ui/.vite/
+inferra-ui/build/
+inferra-ui/.env.local
+inferra-ui/.env.*.local
+
+# -----------------------------------------------------------------------------
+# Editors & OS
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+desktop.ini
+
+# JetBrains IDEs
+.idea/
+
+# VSCode / Cursor workspace files (keep settings.json if team-shared)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.cursor/
+
+# Vim / Emacs swap files
+*.swp
+*.swo
+*~
+\#*\#
+
+# -----------------------------------------------------------------------------
+# Logs
+# -----------------------------------------------------------------------------
+*.log
+logs/
+*.log.*
+
+# -----------------------------------------------------------------------------
+# Alembic (keep migrations, ignore generated artifacts)
+# -----------------------------------------------------------------------------
+# (migrations/ is source — do NOT ignore it)
+
+# -----------------------------------------------------------------------------
+# Prometheus / Grafana local data
+# -----------------------------------------------------------------------------
+infra/prometheus/data/
+infra/grafana/data/
