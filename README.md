@@ -7,7 +7,7 @@ A production-grade, multi-tenant LLM inference platform built on vLLM. Exposes a
 
 ---
 
-## Quick Start (Local — Mock vLLM)
+## Quick Start (Local)
 
 ```bash
 docker compose up --build -d
@@ -56,7 +56,7 @@ print(response.choices[0].message.content)
 | Service | Port | Purpose |
 |---------|------|---------|
 | `api-gateway` | `9100` | FastAPI control plane (auth, routing, metering, adapters) |
-| `vllm` (mock) | internal | Mock inference engine (swap for real vLLM on GPU) |
+| `vllm` | internal | Inference engine — mock stub locally, real vLLM on RunPod GPU |
 | `postgres` | internal | Metadata store (orgs, keys, adapters, requests, usage) |
 | `redis` | internal | Rate limits, concurrency tracking, daily quotas |
 | `minio` | internal / `9001` | LoRA adapter artifact storage (S3-compatible) |
@@ -117,6 +117,6 @@ Full documentation is in [`docs/`](docs/README.md):
 | [LoRA Adapters](docs/guides/lora-adapters.md) | Register and serve fine-tuned adapters |
 | [Rate Limits & Quotas](docs/guides/rate-limits-and-quotas.md) | Admission control, 429/503 handling |
 | [Observability](docs/guides/observability.md) | Prometheus metrics, Grafana, OTel tracing |
-| [Local Development](docs/deployment/local-development.md) | Docker Compose, dev commands, mock vLLM |
+| [Local Development](docs/deployment/local-development.md) | Docker Compose, dev commands, local stack |
 | [RunPod GPU Deployment](docs/deployment/runpod-gpu.md) | NVIDIA L4 setup, SSH tunnel, integration |
 | [Contributing & Testing](docs/development/contributing.md) | Dev guide, tests, benchmark scripts |
