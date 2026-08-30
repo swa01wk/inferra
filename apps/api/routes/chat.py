@@ -95,8 +95,10 @@ async def chat_completions(
         db.add(request_record)
         await db.commit()
 
-        payload = request.model_dump()
+        payload = request.model_dump(exclude={"enable_thinking"})
         payload["model"] = target.adapter_runtime_name or target.base_model
+        if request.enable_thinking is not None:
+            payload["chat_template_kwargs"] = {"enable_thinking": request.enable_thinking}
 
         client = VLLMClient(target.worker_endpoint)
         token_counter = TokenCounter()

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     vllm_base_url: str = "http://vllm:8000"
-    vllm_timeout_seconds: int = 120
+    vllm_timeout_seconds: int = 300  # increased for thinking-mode responses
 
     default_max_tokens: int = 512
     max_context_tokens: int = 8192
@@ -30,6 +30,8 @@ class Settings(BaseSettings):
 
     otel_enabled: bool = False
     otel_endpoint: str = "http://localhost:4317"
+
+    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:4173"]
 
     max_lora_rank: int = 16
     global_queue_limit: int = 50

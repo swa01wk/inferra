@@ -16,6 +16,7 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = 512
     temperature: float | None = 1.0
     top_p: float | None = 1.0
+    enable_thinking: bool | None = None  # Qwen3 thinking mode; maps to chat_template_kwargs
 
 
 class ChatCompletionChoice(BaseModel):
@@ -90,6 +91,7 @@ class AdapterResponse(BaseModel):
     organization_id: UUID
     name: str
     base_model_id: UUID
+    storage_uri: str
     rank: int
     status: str
     error_message: str | None = None

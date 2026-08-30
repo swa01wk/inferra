@@ -20,6 +20,6 @@
 services:
   api-gateway:
     environment:
-      # Point gateway health probe and fallback client at real vLLM via SSH tunnel.
-      # host.docker.internal resolves to the Mac host from Docker Desktop containers.
-      VLLM_BASE_URL: http://host.docker.internal:8001
+      # Point gateway health probe and fallback client at real vLLM via cloudflared tunnel.
+      # Set VLLM_PUBLIC_URL before running: export VLLM_PUBLIC_URL=https://<your-url>.trycloudflare.com
+      VLLM_BASE_URL: ${VLLM_PUBLIC_URL:-https://mix-limousines-lopez-lincoln.trycloudflare.com}

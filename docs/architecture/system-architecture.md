@@ -7,7 +7,7 @@ Inferra is structured as a **two-plane architecture**:
 - **Data plane** — vLLM running on a GPU host (RunPod NVIDIA L4), responsible for all token generation
 - **Control plane** — a FastAPI API gateway running locally (or on any host with network access to the GPU), responsible for auth, routing, rate limiting, metering, and adapter lifecycle
 
-The two planes communicate over HTTP. In local development, an SSH tunnel bridges the Mac's gateway to the RunPod pod. In production, both planes would share a private network.
+The two planes communicate over HTTP. In local development and GPU integration, a **cloudflared public tunnel** exposes the RunPod vLLM endpoint to the gateway (direct SSH port-forwarding is restricted by RunPod). In production, both planes would share a private network.
 
 ---
 
@@ -44,7 +44,7 @@ The two planes communicate over HTTP. In local development, an SSH tunnel bridge
 ║  │  (:9090)     │  │   (:3000)    │                                     ║
 ║  └──────────────┘  └──────────────┘                                     ║
 ╚════════════════════════════╦════════════════════════════════════════════╝
-                             │ HTTP (SSH tunnel in dev: localhost:8001 → RunPod:8000)
+                             │ HTTP (cloudflared tunnel: https://<id>.trycloudflare.com → RunPod:8000)
 ╔════════════════════════════▼════════════════════════════════════════════╗
 ║                         DATA PLANE (RunPod NVIDIA L4 24 GB)              ║
 ║  ┌─────────────────────────────────────────────────────────────────────┐ ║
@@ -256,22 +256,27 @@ Mac (localhost)
 │   └── grafana              :3000
 ```
 
-### Real GPU Integration (RunPod + SSH tunnel)
+### Real GPU Integration (RunPod + cloudflared tunnel)
+
+Validated end-to-end 2026-08-30: 31/32 integration tests passed, ~28 tok/s baseline, TTFT 610 ms.
 
 ```
 Mac (localhost)
-├── SSH tunnel: localhost:8001 → RunPod pod:8000
 │
 ├── docker compose -f docker-compose.yml -f docker-compose.real.yml
-│   ├── mock-vllm (health stub only)
-│   ├── api-gateway :9100    ← VLLM_BASE_URL=http://host.docker.internal:8001
+│   ├── mock-vllm (health stub only — passes compose healthcheck)
+│   ├── api-gateway :9100 (host) / :9000 (container-internal)
 │   ├── postgres / redis / minio / prometheus / grafana
 │
-RunPod pod (5fmoz125ju1zc0)
-└── vLLM :8000               ← Qwen3-4B BF16, 19 GB VRAM
+│   Worker.endpoint in DB = https://<cloudflared-url>.trycloudflare.com
+│   api-gateway routes per-request via resolve_target() → this URL
+│
+RunPod pod (jgdi3n3khln553)
+├── vLLM :8000               ← Qwen3-4B BF16, 8K ctx, LoRA enabled
+└── cloudflared              ← exposes :8000 as public HTTPS URL (tmux:cf-tunnel)
 ```
 
-The `docker-compose.real.yml` overlay overrides `VLLM_BASE_URL` to point through the SSH tunnel. The Worker record in PostgreSQL stores `endpoint=http://host.docker.internal:8001` — this is what `resolve_target()` uses for per-request routing, not the static env var.
+The Worker record in PostgreSQL stores `endpoint=https://<cloudflared-url>` — registered by `scripts/seed_real_worker.py`. The `resolve_target()` function uses this per-request. Note: the cloudflared URL changes each time cloudflared restarts; re-run `integrate.sh` with the new URL via `VLLM_PUBLIC_URL=<new-url> ./scripts/integrate.sh <container-id>`.
 
 ---
 

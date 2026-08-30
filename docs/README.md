@@ -27,6 +27,7 @@
 | Document | Description |
 |----------|-------------|
 | [Getting Started](guides/getting-started.md) | First inference call in under 5 minutes |
+| [**Frontend Guide**](guides/frontend-guide.md) | **Run the React UI, configure keys, use all 5 pages** |
 | [LoRA Adapters](guides/lora-adapters.md) | Register, upload, and serve fine-tuned LoRA adapters |
 | [Rate Limits & Quotas](guides/rate-limits-and-quotas.md) | Default limits, quota policies, 429/503 handling |
 | [Observability](guides/observability.md) | Prometheus metrics, Grafana dashboards, OpenTelemetry tracing |
@@ -35,6 +36,7 @@
 | Document | Description |
 |----------|-------------|
 | [Local Development](deployment/local-development.md) | Run the full stack locally with Docker Compose and mock vLLM |
+| [**E2E Integration**](deployment/e2e-integration.md) | **Complete RunPod + gateway + frontend integration guide** |
 | [RunPod GPU Deployment](deployment/runpod-gpu.md) | Provision an NVIDIA L4, serve real models, integrate with the gateway |
 
 ### Development
@@ -49,6 +51,7 @@
 | [RunPod POC Runbook](runbooks/runpod-poc-runbook.md) | SSH setup, tmux cheat sheet, GPU verification, vLLM management |
 | [First L4 Deployment](runbooks/first-l4-deployment.md) | One-time pod provisioning walkthrough |
 | [Beta Checklist](runbooks/beta-checklist.md) | Pre-beta readiness gate (13 sections) |
+| [RunPod Networking RCA](runbooks/runpod-networking-rca.md) | SSH tunnel failures, cloudflared solution, future session checklist |
 
 ### Benchmark Scripts (`scripts/benchmark/`)
 | Script | What it does |
@@ -78,7 +81,8 @@
 ## Quick Links
 
 - **Start here (local):** [Getting Started](guides/getting-started.md)
-- **Start here (GPU):** [How to Run All Phases](runbooks/how-to-run-all-phases.md)
+- **Start here (GPU + UI):** [E2E Integration](deployment/e2e-integration.md)
+- **Frontend UI:** [Frontend Guide](guides/frontend-guide.md)
 - **API calls:** [API Reference](api/api-reference.md)
 - **Current status:** [`STATUS.md`](../STATUS.md)
 - **Phase plans:** [`plans/README.md`](../plans/README.md)

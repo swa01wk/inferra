@@ -1,9 +1,11 @@
 # Inferra Frontend — V1 Specification
 
-> **Purpose:** This document defines the frontend for the Inferra V1 inference platform. It
-> maps directly onto the implemented backend (Phases 1–8) and the product spec. The UI has
-> two concerns: a **ChatGPT-like inference playground** for testing queries, and a
-> **control-plane dashboard** for managing tenants, API keys, adapters, and usage.
+> **Implementation status: ✅ Complete** — `inferra-ui` implemented and E2E tested (2026-08-30).
+> All five pages are live and wired to the real backend.
+> See [`docs/guides/frontend-guide.md`](guides/frontend-guide.md) for the operational guide.
+>
+> This document is the original design specification. It is preserved as reference for
+> future extensions (V2 items listed at the bottom).
 
 ---
 
@@ -105,6 +107,7 @@ Inferra-specific controls (model alias selector, adapter routing, token usage).
 | Temperature | Slider 0.0–1.5 | `request.temperature` |
 | Top-p | Slider 0.0–1.0 | `request.top_p` |
 | Stream | Toggle | `request.stream` |
+| Thinking (Qwen3) | Toggle | `request.enable_thinking` → `chat_template_kwargs` |
 
 #### Message thread
 
@@ -188,10 +191,6 @@ Response shows the **secret once** in a copy-to-clipboard box — warn the user 
 | List keys | `GET` | `/v1/api-keys` | admin |
 | Create key | `POST` | `/v1/api-keys` | admin |
 | Revoke key | `DELETE` | `/v1/api-keys/{id}` | admin |
-
-> **Note:** The current backend (`admin.py`) exposes create + revoke. A `GET /v1/api-keys` list
-> endpoint is not yet implemented — add it to `admin.py` as a simple `select(APIKey)` filtered
-> by the admin's `organization_id`.
 
 ---
 
@@ -437,46 +436,11 @@ components/
 | Page | Endpoints used |
 |------|---------------|
 | Chat | `GET /v1/models`, `POST /v1/chat/completions` |
-| Keys | `GET /v1/api-keys`*, `POST /v1/api-keys`, `DELETE /v1/api-keys/{id}` |
+| Keys | `GET /v1/api-keys`, `POST /v1/api-keys`, `DELETE /v1/api-keys/{id}` |
 | Adapters | `GET /v1/adapters`, `POST /v1/adapters`, `DELETE /v1/adapters/{id}`, `POST /v1/aliases` |
 | Usage | `GET /v1/usage` |
 | Workers | `GET /v1/workers`, `GET /v1/deployments` |
 | Settings | `GET /health` (ping on save to validate key/URL) |
-
-*`GET /v1/api-keys` list endpoint — needs to be added to `admin.py` (see note in Keys section).
-
----
-
-## Missing Backend Endpoint to Add
-
-The Keys page needs a list endpoint that does not exist yet. Add to `apps/api/routes/admin.py`:
-
-```python
-@router.get("/api-keys")
-async def list_api_keys(
-    auth: AuthenticatedContext = Depends(require_admin_key),
-    db: AsyncSession = Depends(get_db),
-) -> dict:
-    result = await db.execute(
-        select(APIKey).where(APIKey.organization_id == auth.organization.id)
-        .order_by(APIKey.created_at.desc())
-    )
-    keys = result.scalars().all()
-    return {
-        "api_keys": [
-            {
-                "id": str(k.id),
-                "name": k.name,
-                "key_prefix": k.key_prefix,
-                "status": k.status,
-                "is_admin": k.is_admin,
-                "expires_at": k.expires_at.isoformat() if k.expires_at else None,
-                "created_at": k.created_at.isoformat(),
-            }
-            for k in keys
-        ]
-    }
-```
 
 ---
 

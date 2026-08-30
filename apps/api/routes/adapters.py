@@ -161,6 +161,7 @@ def _to_response(adapter: Adapter) -> AdapterResponse:
         organization_id=adapter.organization_id,
         name=adapter.name,
         base_model_id=adapter.base_model_id,
+        storage_uri=adapter.storage_uri,
         rank=adapter.rank,
         status=adapter.status,
         error_message=adapter.error_message,

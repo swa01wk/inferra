@@ -271,6 +271,7 @@ All gateway configuration is in `apps/api/config.py` and loaded from `.env`:
 | `5432` | PostgreSQL | Internal |
 | `6379` | Redis | Internal |
 | `9090` | Prometheus | Internal (or expose in compose for direct access) |
+| `5173–5175` | Vite dev server (inferra-ui) | Host machine |
 
 ---
 
@@ -282,15 +283,62 @@ When a RunPod GPU is available, override the compose config:
 docker compose -f docker-compose.yml -f docker-compose.real.yml up -d
 ```
 
-`docker-compose.real.yml` overrides `VLLM_BASE_URL` to point through an SSH tunnel:
+`docker-compose.real.yml` overrides `VLLM_BASE_URL` to the cloudflared tunnel:
 ```yaml
 services:
   api-gateway:
     environment:
-      VLLM_BASE_URL: http://host.docker.internal:8001
+      VLLM_BASE_URL: ${VLLM_PUBLIC_URL:-https://...}
 ```
 
-See [RunPod GPU Deployment](runpod-gpu.md) for the full integration workflow including SSH tunnel setup.
+Set `VLLM_PUBLIC_URL` before running:
+```bash
+export VLLM_PUBLIC_URL=https://xxxx.trycloudflare.com
+```
+
+See [RunPod GPU Deployment](runpod-gpu.md) and [E2E Integration](e2e-integration.md) for the full workflow.
+
+---
+
+## Frontend (inferra-ui)
+
+The React SPA lives in `inferra-ui/` and runs separately from the Docker stack.
+
+### Start the dev server
+
+```bash
+cd inferra-ui
+npm install      # first time only
+npm run dev
+# → http://localhost:5173 (or next available port)
+```
+
+### Configure Settings
+
+Open the printed URL in your browser → click the **Settings** gear icon → fill in:
+
+| Field | Value |
+|-------|-------|
+| **Gateway URL** | The same URL as in the browser bar (e.g. `http://localhost:5173`) |
+| **Inference Key** | From `seed_dev_data.py` output |
+| **Admin Key** | From `seed_dev_data.py` output |
+
+> **Why set Gateway URL to the Vite port?**  
+> The Vite dev server proxies `/v1`, `/health`, and `/metrics` to `http://localhost:9100`.
+> By pointing the UI at the Vite origin, all API calls go through the proxy — no CORS issues
+> regardless of which port Vite picks.
+
+### Environment variables (`inferra-ui/.env.local`)
+
+```bash
+# Where the Vite proxy forwards API calls (server-side, never browser-visible)
+VITE_API_TARGET=http://localhost:9100
+
+# Grafana iframe URL (Workers page)
+VITE_GRAFANA_URL=http://localhost:3000
+```
+
+See [Frontend Guide](../guides/frontend-guide.md) for the full page-by-page reference.
 
 ---
 

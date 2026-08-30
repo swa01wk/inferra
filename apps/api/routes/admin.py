@@ -65,6 +65,33 @@ async def create_api_key(
     )
 
 
+@router.get("/api-keys")
+async def list_api_keys(
+    auth: AuthenticatedContext = Depends(require_admin_key),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    result = await db.execute(
+        select(APIKey)
+        .where(APIKey.organization_id == auth.organization.id)
+        .order_by(APIKey.created_at.desc())
+    )
+    keys = result.scalars().all()
+    return {
+        "api_keys": [
+            {
+                "id": str(k.id),
+                "name": k.name,
+                "key_prefix": k.key_prefix,
+                "status": k.status,
+                "is_admin": k.is_admin,
+                "expires_at": k.expires_at.isoformat() if k.expires_at else None,
+                "created_at": k.created_at.isoformat() if k.created_at else None,
+            }
+            for k in keys
+        ]
+    }
+
+
 @router.delete("/api-keys/{key_id}")
 async def revoke_api_key(
     key_id: UUID,

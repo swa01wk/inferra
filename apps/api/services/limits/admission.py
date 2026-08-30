@@ -52,6 +52,13 @@ def check_input_token_ceiling(request: ChatCompletionRequest, policy: QuotaPolic
             status_code=400,
             detail=f"Prompt exceeds maximum input token limit of {policy.max_input_tokens}",
         )
+    if request.max_tokens and request.max_tokens > settings.max_context_tokens:
+        if org_id:
+            rate_limit_rejections_total.labels(reason="context_ceiling", tenant_id=org_id).inc()
+        raise HTTPException(
+            status_code=400,
+            detail=f"max_tokens {request.max_tokens} exceeds the model context window of {settings.max_context_tokens} tokens",
+        )
     if request.max_tokens and request.max_tokens > policy.max_output_tokens:
         request.max_tokens = policy.max_output_tokens
 
@@ -74,7 +81,11 @@ async def check_admission(
 
     if not await concurrency_tracker.acquire(org_id, policy.max_concurrent_requests):
         rate_limit_rejections_total.labels(reason="concurrent", tenant_id=org_id).inc()
-        raise HTTPException(status_code=429, detail="Concurrent request limit reached")
+        raise HTTPException(
+            status_code=429,
+            detail="Concurrent request limit reached",
+            headers={"Retry-After": "1"},
+        )
 
     estimated_tokens = estimate_tokens(request.messages) + (request.max_tokens or settings.default_max_tokens)
     if not await check_daily_quota(org_id, estimated_tokens, policy.daily_token_hard_limit):

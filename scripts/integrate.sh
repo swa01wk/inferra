@@ -4,7 +4,7 @@
 # Prerequisites:
 #   1. RunPod pod is RUNNING and vLLM is serving (after 04_finalize_phase1.sh).
 #   2. Docker Desktop is running on this Mac.
-#   3. SSH key is loaded: ssh-add ~/.ssh/id_ed25519_runpod
+#   3. SSH key is loaded: ssh-add ~/.ssh/id_ed25519
 #
 # Usage:
 #   ./scripts/integrate.sh <container-id>
@@ -26,9 +26,11 @@
 
 set -euo pipefail
 
-POD_ID="5fmoz125ju1zc0"
-SSH_KEY="${SSH_KEY:-${HOME}/.ssh/id_ed25519_runpod}"
+POD_ID="jgdi3n3khln553"
+SSH_KEY="${SSH_KEY:-${HOME}/.ssh/id_ed25519}"
 TUNNEL_LOCAL_PORT="8001"
+# Cloudflared public tunnel URL (bypasses RunPod SSH port-forward restriction)
+VLLM_PUBLIC_URL="${VLLM_PUBLIC_URL:-https://mix-limousines-lopez-lincoln.trycloudflare.com}"
 
 # ── Parse args ────────────────────────────────────────────────────────
 CONTAINER_ID="${1:-${RUNPOD_CONTAINER_ID:-}}"
@@ -53,51 +55,36 @@ echo ""
 
 # ── 1. Ensure SSH key is loaded ───────────────────────────────────────
 echo "[ 1/8 ] SSH key check..."
-if ! ssh-add -l 2>/dev/null | grep -q "id_ed25519_runpod"; then
+if ! ssh-add -l 2>/dev/null | grep -q "id_ed25519"; then
     echo "  Loading SSH key..."
     ssh-add "${SSH_KEY}"
 fi
 echo "  SSH key loaded ✓"
 
-# ── 2. Kill stale tunnel on port 8001 (if any) ───────────────────────
+# ── 2. Verify vLLM is reachable via cloudflared public URL ────────────
 echo ""
-echo "[ 2/8 ] SSH tunnel setup..."
-# Kill any existing tunnel on this port
-EXISTING_PID=$(lsof -ti tcp:${TUNNEL_LOCAL_PORT} 2>/dev/null || true)
-if [[ -n "$EXISTING_PID" ]]; then
-    echo "  Killing stale process on port ${TUNNEL_LOCAL_PORT} (pid ${EXISTING_PID})..."
-    kill "$EXISTING_PID" 2>/dev/null || true
-    sleep 1
-fi
-
-# Open fresh tunnel
-ssh -i "${SSH_KEY}" \
-    -L "${TUNNEL_LOCAL_PORT}:localhost:8000" \
-    -N -f \
-    -o "StrictHostKeyChecking=no" \
-    -o "ServerAliveInterval=30" \
-    "${RUNPOD_HOST}"
-
-# Verify tunnel
-echo "  Waiting for vLLM via tunnel..."
+echo "[ 2/8 ] Verifying vLLM via cloudflared tunnel..."
+echo "  URL: ${VLLM_PUBLIC_URL}"
 TUNNEL_OK=0
 for i in $(seq 1 12); do
-    if curl -sf "http://localhost:${TUNNEL_LOCAL_PORT}/health" > /dev/null 2>&1; then
+    if curl -sf "${VLLM_PUBLIC_URL}/health" > /dev/null 2>&1; then
         TUNNEL_OK=1
         break
     fi
+    echo "  attempt ${i}/12 — waiting 2s..."
     sleep 2
 done
 if [[ $TUNNEL_OK -eq 0 ]]; then
     echo ""
-    echo "ERROR: Could not reach vLLM through tunnel."
-    echo "  - Is the RunPod pod RUNNING?"
-    echo "  - Is vLLM serving? (check: tmux attach -t inferra on the pod)"
-    echo "  - Is the container ID correct? (current: ${CONTAINER_ID})"
+    echo "ERROR: Could not reach vLLM at ${VLLM_PUBLIC_URL}"
+    echo "  - Is vLLM running on the pod? (curl http://localhost:8000/health)"
+    echo "  - Is cloudflared running? (tmux attach -t inferra:cf-tunnel)"
+    echo "  - If the cloudflare URL changed, re-run with:"
+    echo "    VLLM_PUBLIC_URL=<new-url> ./scripts/integrate.sh ${CONTAINER_ID}"
     exit 1
 fi
-echo "  Tunnel to real vLLM is live ✓"
-echo "  $(curl -s http://localhost:${TUNNEL_LOCAL_PORT}/v1/models | python3 -c 'import sys,json; d=json.load(sys.stdin); print("  Model:", d["data"][0]["id"])' 2>/dev/null || echo '  (could not fetch model list)')"
+echo "  vLLM reachable ✓"
+echo "  $(curl -s "${VLLM_PUBLIC_URL}/v1/models" | python3 -c 'import sys,json; d=json.load(sys.stdin); print("  Model:", d["data"][0]["id"])' 2>/dev/null || echo '  (could not fetch model list)')"
 
 # ── 3. Clean stack teardown ───────────────────────────────────────────
 echo ""
@@ -137,16 +124,17 @@ echo "  ADMIN_KEY     : ${ADMIN_KEY}"
 echo ""
 echo "[ 6/8 ] Seeding real worker (retiring mock, pointing alias to real deployment)..."
 docker compose exec -T api-gateway \
-    env REAL_VLLM_ENDPOINT="http://host.docker.internal:${TUNNEL_LOCAL_PORT}" \
+    env REAL_VLLM_ENDPOINT="${VLLM_PUBLIC_URL}" \
     python scripts/seed_real_worker.py
 echo "  Real worker seeded ✓"
 
 # ── 7. Integration tests ──────────────────────────────────────────────
 echo ""
 echo "[ 7/8 ] Running integration tests..."
-INFERRA_INFERENCE_KEY="${INFERENCE_KEY}" \
-INFERRA_ADMIN_KEY="${ADMIN_KEY}" \
-INFERRA_BASE_URL="http://localhost:9100" \
+docker compose exec -T api-gateway \
+    env INFERRA_INFERENCE_KEY="${INFERENCE_KEY}" \
+        INFERRA_ADMIN_KEY="${ADMIN_KEY}" \
+        INFERRA_BASE_URL="http://localhost:9000" \
     python -m pytest tests/integration -v --tb=short
 echo "  Integration tests complete ✓"
 
@@ -154,10 +142,10 @@ echo "  Integration tests complete ✓"
 echo ""
 echo "[ 8/8 ] Baseline benchmark (single request through gateway → real vLLM)..."
 echo ""
-python scripts/benchmark/baseline.py \
-    --url "http://localhost:9100/v1/chat/completions" \
-    --api-key "${INFERENCE_KEY}" \
-    --prompt "Explain what a KV cache is in 2 sentences."
+docker compose exec -T api-gateway \
+    python scripts/benchmark/baseline.py \
+    --url "http://localhost:9000/v1/chat/completions" \
+    --api-key "${INFERENCE_KEY}"
 
 # ── Summary ───────────────────────────────────────────────────────────
 echo ""
